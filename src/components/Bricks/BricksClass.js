@@ -1,4 +1,5 @@
 import apple from '../../assets/apple-logo.svg'
+
 class BricksClass {
     canvas;
     canvasContext;
@@ -8,8 +9,8 @@ class BricksClass {
     ball;
     brickInfo = {};
     bricks = [];
-    brickRowCount = 9;
-    brickColumnCount = 5;
+    brickRowCount = 6;
+    brickColumnCount = 10;
     lives = 3
     score = 0
     elementsToFall = []
@@ -64,21 +65,21 @@ class BricksClass {
             dx: 0,
             visible: true  
         }
-       this.ball = {
+        this.ball = {
             x: this.canvas.width / 2,
-            y: this.canvas.height / 2,
+            y: this.paddle.y - 10, // Coloca la pelota justo encima del paddle
             size: 10,
-            speed: 1.5,
-            dx: 2,
-            dy: -2,
+            speed: 1.7,
+            dx: 0, // Inicialmente no hay movimiento en x
+            dy: 0, // Inicialmente no hay movimiento en y
             visible: true     
-        }
-
+        };
+        
 
         this.brickInfo = {
-            w: 80,
+            w: 75.5,
             h: 20,
-            padding: 12,
+            padding: 6,
             offsetX: 40,
             offsetY: 80,
             visible: true
@@ -96,55 +97,156 @@ class BricksClass {
             }
         }
 
+        this.inGame = false
+        this.isBallReadyToLaunch = true; // Indica si la pelota está lista para ser lanzada
+        this.arrowAngle = Math.PI / 4; // Angulo inicial de la flecha (45 grados)
+        
         this.createBricks()
         // Keyboard event handlers
         this.keyDown = this.keyDown.bind(this);
         this.keyUp = this.keyUp.bind(this); 
         document.addEventListener('keydown', this.keyDown);
         document.addEventListener('keyup', this.keyUp);
+        
+        setInterval(() => {
+            if(this.inGame){
+                this.addNewBrickLine();
+            }
+        }, 5000); // 5000 milisegundos = 5 segundos    
+    }
+
+    drawArrow() {
+        if (!this.isBallReadyToLaunch) return;
+    
+        const arrowLength = 50; // Longitud de la flecha
+        const endX = this.ball.x + arrowLength * Math.cos(this.arrowAngle);
+        const endY = this.ball.y - arrowLength * Math.sin(this.arrowAngle);
+    
+        const arrowHeadLength = 20; // Longitud de los lados de la punta de la flecha
+        const arrowHeadAngle = Math.PI / 8; // Ángulo en radianes para los lados de la punta
+        
+        // Calcular los puntos de la punta de la flecha
+        const leftX = endX - arrowHeadLength * Math.cos(this.arrowAngle - arrowHeadAngle);
+        const leftY = endY + arrowHeadLength * Math.sin(this.arrowAngle - arrowHeadAngle);
+        const rightX = endX - arrowHeadLength * Math.cos(this.arrowAngle + arrowHeadAngle);
+        const rightY = endY + arrowHeadLength * Math.sin(this.arrowAngle + arrowHeadAngle);
+        
+        // Dibujar la punta de la flecha
+        this.canvasContext.beginPath();
+        this.canvasContext.moveTo(endX, endY);
+        this.canvasContext.lineTo(leftX, leftY);
+        this.canvasContext.lineTo(rightX, rightY);
+        this.canvasContext.closePath();
+        this.canvasContext.fillStyle = 'black';
+        this.canvasContext.fill();
+        
+
+        this.canvasContext.beginPath();
+        this.canvasContext.moveTo(this.ball.x, this.ball.y);
+        this.canvasContext.lineTo(endX, endY);
+        this.canvasContext.strokeStyle = 'black';
+        this.canvasContext.lineWidth = 2;
+        this.canvasContext.stroke();
+    
+    
+        this.canvasContext.strokeStyle = 'black';
+        this.canvasContext.lineWidth = 1;
     }
 
     // Create bricks
-    createBricks () {
-        if(this.brickInfo.visible!==undefined){
-            let newArray=[]
+    createBricks() {
+        if (this.brickInfo.visible !== undefined) {
+            let newArray = [];
+
             for (let i = 0; i < this.brickRowCount; i++) {
-              newArray[i] = [];
-              for (let j = 0; j < this.brickColumnCount; j++) {
-                const x = i * (this.brickInfo.w + this.brickInfo.padding) + this.brickInfo.offsetX;
-                const y = j * (this.brickInfo.h + this.brickInfo.padding) + this.brickInfo.offsetY;
-
-
-                // % random
-                let element = null;
-                const randomElement = Math.random() * 100;
-                if(randomElement < 20) element = {visible: true}
-                else if (randomElement < 40) element = this.gameConfig.tables[0];
-                else if (randomElement < 60) element =  this.gameConfig.tables[1];
-                else element = this.gameConfig.tables[2];
-
-                // Selección del color según la bonificación del ladrillo
-                let brickColor;
-                switch (element?.bonification) {
-                    case 'nula':
-                        brickColor = this.nullBonusColor;
-                        break;
-                    case 'mediadora':
-                        brickColor = this.mediatorBonusColor;
-                        break;
-                    case 'premio':
-                        brickColor = this.powerupBonusColor;
-                        break;
-                    default:
-                        brickColor = this.standardColor;
-                        break;
+                newArray[i] = [];
+                for (let j = 0; j < this.brickColumnCount; j++) {
+                    const x = j * (this.brickInfo.w + this.brickInfo.padding) + this.brickInfo.offsetX;
+                    const y = i * (this.brickInfo.h + this.brickInfo.padding) + this.brickInfo.offsetY;
+    
+                    // % random
+                    let element = null;
+                    const randomElement = Math.random() * 100;
+                    if (randomElement < 20) element = { visible: true }
+                    else if (randomElement < 40) element = this.gameConfig.tables[0];
+                    else if (randomElement < 60) element = this.gameConfig.tables[1];
+                    else element = this.gameConfig.tables[2];
+    
+                    // Selección del color según la bonificación del ladrillo
+                    let brickColor;
+                    switch (element?.bonification) {
+                        case 'nula':
+                            brickColor = this.nullBonusColor;
+                            break;
+                        case 'mediadora':
+                            brickColor = this.mediatorBonusColor;
+                            break;
+                        case 'premio':
+                            brickColor = this.powerupBonusColor;
+                            break;
+                        default:
+                            brickColor = this.standardColor;
+                            break;
+                    }
+                    newArray[i][j] = { x, y, element, brickColor, ...this.brickInfo };
                 }
-                newArray[i][j] = { x, y, element, brickColor, ...this.brickInfo };
-              }
             }
-            this.bricks = newArray
-          }
+            this.bricks = newArray;
+        }
     }
+    
+
+    addNewBrickLine() {
+        // Crear una nueva fila de ladrillos
+        let newRow = [];
+
+        for (let j = 0; j < this.brickColumnCount; j++) {
+            const x = j * (this.brickInfo.w + this.brickInfo.padding) + this.brickInfo.offsetX;
+            const y = this.brickInfo.offsetY; // La nueva fila siempre comienza en la misma posición 'y' inicial
+
+            // Generar elemento de ladrillo aleatorio
+            let element = null;
+            const randomElement = Math.random() * 100;
+            if (randomElement < 20) element = { visible: true };
+            else if (randomElement < 40) element = this.gameConfig.tables[0];
+            else if (randomElement < 60) element = this.gameConfig.tables[1];
+            else element = this.gameConfig.tables[2];
+
+            // Selección del color según la bonificación del ladrillo
+            let brickColor;
+            switch (element?.bonification) {
+                case 'nula':
+                    brickColor = this.nullBonusColor;
+                    break;
+                case 'mediadora':
+                    brickColor = this.mediatorBonusColor;
+                    break;
+                case 'premio':
+                    brickColor = this.powerupBonusColor;
+                    break;
+                default:
+                    brickColor = this.standardColor;
+                    break;
+            }
+
+            newRow.push({ x, y, element, brickColor, ...this.brickInfo, visible: true });
+        }
+
+        this.bricks.forEach(row => {
+            row.forEach(brick => {
+                brick.y += this.brickInfo.h + this.brickInfo.padding;
+            });
+        });
+
+        if(this.bricks.length < 21){
+            this.bricks.unshift(newRow);
+        }else{
+            this.bricks.unshift(newRow);
+            this.bricks.pop();
+        }
+    }
+    
+
 
     createParticlesBrokenEffect(brick, count) {
         const centerX = brick.x + brick.w / 2;
@@ -174,11 +276,31 @@ class BricksClass {
     }
 
     // Keydown event
-    keyDown (e) {
+    keyDown(e) {
         if (e.key === 'Right' || e.key === 'ArrowRight') {
-            this.paddle.dx = this.paddle.speed;
+            if (this.isBallReadyToLaunch) {
+                if(parseFloat(this.arrowAngle) >= 0.6){
+                    this.arrowAngle -= 0.1; // Ajusta el ángulo de la flecha
+                }
+            } else {
+                this.paddle.dx = this.paddle.speed;
+            }
         } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
-            this.paddle.dx = - this.paddle.speed;
+            if (this.isBallReadyToLaunch) {
+                if(parseFloat(this.arrowAngle) <= 2.6){
+                    this.arrowAngle += 0.1; // Ajusta el ángulo de la flecha
+                }
+            } else {
+                this.paddle.dx = -this.paddle.speed;
+            }
+        } else if (e.key === 'Space' || e.key === ' ') {
+            // Lógica para disparar la pelota
+            if (this.isBallReadyToLaunch) {
+                this.ball.dx = 2 * Math.cos(this.arrowAngle); // Velocidad en x basada en el ángulo
+                this.ball.dy = -2 * Math.sin(this.arrowAngle); // Velocidad en y basada en el ángulo
+                this.isBallReadyToLaunch = false;
+                this.inGame = true
+            }
         }
     }
 
@@ -415,13 +537,14 @@ class BricksClass {
     }
 
     // DRAW CANVAS 
-    draw () {
-        this.clearCanvas()
+    draw() {
+        this.clearCanvas();
         this.drawElementsToFall();
         this.drawBall();
         this.drawPaddle();
         this.drawBricks();
-        this.drawBrokenBrickParticles()
+        this.drawBrokenBrickParticles();
+        this.drawArrow(); // Dibujar la flecha
     }
 
     // ADD BRICKS 10 seconds
@@ -444,7 +567,7 @@ class BricksClass {
                 newArray[0][j] = { x, y, element, ...this.brickInfo };
             }
             this.bricks.unshift(newArray)
-            // console.log(this.bricks)
+            console.log("this.bricks")
         }
     }
 
@@ -602,6 +725,7 @@ class BricksClass {
                             this.createElementToFall(brick.x, brick.y, brick.element, brick.w, brick.h, brick.brickColor)
                             brick.visible = false;
                         }
+                        this.ball.speed += 0.02;
                         setTimeout(() => {
                             this.createParticlesBrokenEffect(brick, 100)
                         }, 50);
@@ -675,6 +799,7 @@ class BricksClass {
     gameOver () { 
         this.gameEndModal('FIN DEL JUEGO', `Obtuviste una puntuacion de ${this.score}`, () => this.saveGameResults())
     }
+
 }
 
 export default BricksClass;
